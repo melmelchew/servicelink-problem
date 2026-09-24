@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The ServiceLink Problem</title>
+<style>
+  :root {
+    --bg: #ece7df; --surface: #fffdfa; --surface-alt: #f2eee7;
+    --text: #1b1a17; --muted: #6e6960; --border: #ded7cb;
+    --accent: #1f4d8f; --accent-soft: #e9eefa;
+    --correct: #1f7a4d; --correct-soft: #e5f3ea;
+    --wrong: #ab2f22; --wrong-soft: #fae9e6;
+    --gold: #8f6408; --gold-soft: #f9f0da;
+    --shadow: 0 1px 2px rgba(25,20,10,.05), 0 10px 30px rgba(25,20,10,.09);
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    /* scene palette */
+    --wall: #d8cfc0; --wall2: #c9bfae; --floor: #a8927a; --floor2: #9a836b;
+    --furn: #8a6f52; --furn2: #6f573e; --metal: #b9bcc2; --glass: #cfe3ef;
+    --sky: #bcd8e8; --screen: #2f4858; --paper: #f7f4ec;
+    --skin1: #c8956a; --skin2: #8d5d3b; --skin3: #e0b48c;
+    --cloth1: #3d5a80; --cloth2: #7d4e57; --cloth3: #4a6b52; --cloth4: #5b5570;
+    --hair1: #2e2620; --hair2: #56483c; --hair3: #8a8a88;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101216; --surface: #1a1d22; --surface-alt: #202429;
+      --text: #e9e6e1; --muted: #9b968d; --border: #2c3039;
+      --accent: #7ba4ea; --accent-soft: #1b2533;
+      --correct: #4ec98a; --correct-soft: #142620;
+      --wrong: #f2857c; --wrong-soft: #2a1a18;
+      --gold: #e0b34a; --gold-soft: #272115;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+      --wall: #2f3742; --wall2: #262d36; --floor: #3a3129; --floor2: #2e2721;
+      --furn: #4a3a2a; --furn2: #372a1e; --metal: #565c66; --glass: #2b4250;
+      --sky: #22394a; --screen: #1a2a36; --paper: #cfc9bd;
+      --skin1: #a87a52; --skin2: #74492c; --skin3: #bb8f68;
+      --cloth1: #35506f; --cloth2: #6a414a; --cloth3: #3f5c46; --cloth4: #4d4860;
+      --hair1: #1d1915; --hair2: #453a30; --hair3: #6f6f6d;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; padding: 1.5rem 1rem 3rem; background: var(--bg); color: var(--text);
+    font-family: var(--sans); line-height: 1.5;
+    display: flex; justify-content: center;
+  }
+  main { width: 100%; max-width: 48rem; }
+  a { color: var(--accent); }
+  p { margin: 0 0 1rem; }
+
+  .frame {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; box-shadow: var(--shadow); overflow: hidden;
+  }
+
+  /* ── top bar ─────────────────────────────────────── */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    padding: .7rem 1rem; border-bottom: 1px solid var(--border);
+    background: var(--surface-alt); font-size: .72rem; flex-wrap: wrap;
+  }
+  .chap { text-transform: uppercase; letter-spacing: .12em; font-weight: 700; color: var(--muted); }
+  .chap b { color: var(--accent); }
+  .chap .place { text-transform: none; letter-spacing: .02em; font-weight: 400; font-style: italic; }
+  .stats { display: flex; gap: .9rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .stats b { color: var(--text); }
+  .stats .hot { color: var(--gold); font-weight: 700; }
+
+  /* ── stage ───────────────────────────────────────── */
+  .stage { position: relative; background: var(--wall2); line-height: 0; }
+  .stage svg { width: 100%; height: auto; display: block; }
+  .stage.enter { animation: fadeScene .5s ease both; }
+  @keyframes fadeScene { from { opacity: 0; transform: scale(1.015); } to { opacity: 1; transform: none; } }
+
+  .hot {
+    position: absolute; transform: translate(-50%, -50%);
+    width: 2.3rem; height: 2.3rem; border-radius: 50%;
+    border: 0; background: transparent; cursor: pointer; padding: 0;
+    display: grid; place-items: center;
+  }
+  .hot::before {
+    content: ""; width: .85rem; height: .85rem; border-radius: 50%;
+    background: rgba(255,255,255,.92); box-shadow: 0 0 0 2px rgba(31,77,143,.75), 0 2px 6px rgba(0,0,0,.35);
+    transition: transform .18s;
+  }
+  .hot::after {
+    content: ""; position: absolute; width: 1.8rem; height: 1.8rem; border-radius: 50%;
+    border: 2px solid rgba(31,77,143,.55); animation: ping 2.4s ease-out infinite;
+  }
+  .hot.done::before { background: rgba(255,255,255,.45); box-shadow: 0 0 0 2px rgba(120,120,120,.6); }
+  .hot.done::after { display: none; }
+  .hot.key::before { background: var(--gold); box-shadow: 0 0 0 2px rgba(143,100,8,.85), 0 2px 8px rgba(0,0,0,.4); }
+  .hot.key::after { border-color: rgba(143,100,8,.6); }
+  .hot:hover::before, .hot:focus-visible::before { transform: scale(1.4); }
+  .hot:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  @keyframes ping {
+    0% { transform: scale(.6); opacity: .9; }
+    70% { transform: scale(1.35); opacity: 0; }
+    100% { opacity: 0; }
+  }
+  .hot .tip {
+    position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+    background: rgba(20,18,15,.92); color: #fff; font-family: var(--sans);
+    font-size: .68rem; letter-spacing: .04em; text-transform: uppercase; font-weight: 600;
+    padding: .25rem .5rem; border-radius: 5px; white-space: nowrap;
+    opacity: 0; pointer-events: none; transition: opacity .15s; line-height: 1.4;
+  }
+  .hot:hover .tip, .hot:focus-visible .tip { opacity: 1; }
+  .locknote { font-size: .6rem; opacity: .75; display: block; text-transform: none; letter-spacing: 0; }
+
+  /* ── narration ───────────────────────────────────── */
+  .narr {
+    padding: 1.1rem 1.2rem; border-top: 1px solid var(--border);
+    font-family: var(--serif); font-size: 1.02rem; line-height: 1.6; min-height: 5.5rem;
+  }
+  .narr p { margin: 0 0 .7rem; }
+  .narr p:last-child { margin: 0; }
+  .narr .who {
+    display: block; font-family: var(--sans); font-size: .66rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .12em; color: var(--accent); margin-bottom: .3rem;
+  }
+  .narr .line { animation: slideIn .3s ease both; }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+  .more { font-family: var(--sans); font-size: .7rem; color: var(--muted); margin-top: .6rem; }
+  .more::after { content: " ▸"; animation: blink 1.3s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: .25; } }
+
+  .gain {
+    display: inline-flex; align-items: center; gap: .4rem;
+    background: var(--gold-soft); border: 1px solid var(--gold); color: var(--gold);
+    font-family: var(--sans); font-size: .72rem; font-weight: 700;
+    padding: .3rem .6rem; border-radius: 6px; margin-top: .5rem;
+    animation: badgeIn .45s cubic-bezier(.2,.9,.3,1.3) both;
+  }
+  @keyframes badgeIn { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
+
+  /* ── evidence tray ───────────────────────────────── */
+  .tray {
+    display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+    padding: .7rem 1rem; border-top: 1px solid var(--border); background: var(--surface-alt);
+  }
+  .tray-label {
+    font-size: .64rem; text-transform: uppercase; letter-spacing: .12em;
+    font-weight: 700; color: var(--muted); margin-right: .2rem;
+  }
+  .item {
+    width: 2.1rem; height: 2.1rem; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); font-size: .95rem; cursor: pointer; padding: 0;
+    display: grid; place-items: center; transition: transform .15s, border-color .15s;
+  }
+  .item:hover, .item:focus-visible { transform: translateY(-2px); border-color: var(--gold); }
+  .item.fresh { animation: badgeIn .5s cubic-bezier(.2,.9,.3,1.3) both; }
+  .slot { width: 2.1rem; height: 2.1rem; border-radius: 8px; border: 1px dashed var(--border); opacity: .55; }
+  .tray .count { margin-left: auto; font-size: .7rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* ── overlay panels ──────────────────────────────── */
+  .veil {
+    position: absolute; inset: 0; background: rgba(15,13,10,.72);
+    display: grid; place-items: center; padding: 1rem; animation: fade .25s ease both;
+  }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  .panel {
+    background: var(--surface); border-radius: 12px; padding: 1.3rem;
+    max-width: 30rem; width: 100%; max-height: 100%; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,.4); animation: rise .3s cubic-bezier(.2,.9,.3,1.1) both;
+    line-height: 1.5;
+  }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  .panel h3 { font-family: var(--serif); font-size: 1.15rem; margin: 0 0 .6rem; }
+  .panel .kicker {
+    font-size: .64rem; text-transform: uppercase; letter-spacing: .12em;
+    font-weight: 700; color: var(--muted); margin-bottom: .5rem;
+  }
+  .panel p { font-size: .92rem; }
+
+  .opts { display: flex; flex-direction: column; gap: .5rem; margin: 0 0 .3rem; }
+  .opt {
+    display: flex; gap: .65rem; align-items: flex-start; width: 100%; text-align: left;
+    font: inherit; font-size: .9rem; color: var(--text); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 9px; padding: .7rem .8rem; cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .opt:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); }
+  .opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .opt:disabled { cursor: not-allowed; opacity: .55; }
+  .opt .key {
+    flex: 0 0 auto; width: 1.35rem; height: 1.35rem; border-radius: 5px; background: var(--surface-alt);
+    color: var(--muted); font-size: .72rem; font-weight: 700; display: grid; place-items: center;
+  }
+  .opt.correct { border-color: var(--correct); background: var(--correct-soft); }
+  .opt.correct .key { background: var(--correct); color: #fff; }
+  .opt.wrong { border-color: var(--wrong); background: var(--wrong-soft); }
+  .opt.wrong .key { background: var(--wrong); color: #fff; }
+  .opt.faded { opacity: .4; }
+  .opt .lock { font-size: .68rem; color: var(--muted); display: block; margin-top: .2rem; font-style: italic; }
+
+  .outcome {
+    border-left: 3px solid var(--correct); background: var(--correct-soft);
+    padding: .85rem 1rem; border-radius: 0 9px 9px 0; margin-bottom: .7rem;
+  }
+  .outcome.bad { border-left-color: var(--wrong); background: var(--wrong-soft); }
+  .outcome .verdict {
+    font-size: .64rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--correct); margin-bottom: .3rem;
+  }
+  .outcome.bad .verdict { color: var(--wrong); }
+  .outcome p { font-family: var(--serif); font-size: .97rem; margin: 0; }
+  .why { background: var(--surface-alt); border-radius: 9px; padding: .85rem 1rem; margin-bottom: .9rem; }
+  .why .lbl {
+    font-size: .64rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: .35rem;
+  }
+  .why p { font-size: .88rem; line-height: 1.6; margin: 0 0 .6rem; }
+  .why .src { font-size: .74rem; color: var(--muted); margin: 0; }
+
+  .btn {
+    font: inherit; font-weight: 600; font-size: .9rem; background: var(--accent); color: #fff;
+    border: 1px solid var(--accent); border-radius: 9px; padding: .62rem 1.2rem;
+    cursor: pointer; transition: opacity .15s; text-decoration: none; display: inline-block;
+  }
+  @media (prefers-color-scheme: dark) { .btn { color: #10141b; } }
+  .btn:hover { opacity: .88; }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .btn.ghost { background: transparent; color: var(--accent); }
+  .btn.wide { width: 100%; }
+
+  /* ── title + ending ──────────────────────────────── */
+  .title { padding: 2.2rem 1.6rem 1.8rem; text-align: center; }
+  .title h1 { font-family: var(--serif); font-size: 2.2rem; line-height: 1.12; margin: 0 0 .2rem; letter-spacing: -.015em; }
+  .title .sub { font-size: .7rem; text-transform: uppercase; letter-spacing: .18em; color: var(--muted); font-weight: 700; margin-bottom: 1.3rem; }
+  .title .prose { font-family: var(--serif); font-size: 1.05rem; line-height: 1.62; max-width: 27rem; margin: 0 auto 1.4rem; text-align: left; }
+  .rank-name { font-family: var(--serif); font-size: 1.8rem; margin: .2rem 0 .6rem; }
+  .epilogue { font-family: var(--serif); font-size: 1.02rem; line-height: 1.6; color: var(--muted); max-width: 26rem; margin: 0 auto 1.3rem; }
+  .big { font-size: 2.4rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+  .big span { font-size: .85rem; font-weight: 400; color: var(--muted); }
+  .tallies { display: flex; justify-content: center; gap: 1.6rem; margin-top: .9rem; flex-wrap: wrap; }
+  .tally { font-size: .74rem; color: var(--muted); }
+  .tally b { display: block; font-size: 1.05rem; color: var(--text); font-variant-numeric: tabular-nums; }
+  .best { font-size: .76rem; color: var(--muted); text-align: center; margin: 1rem 0 0; }
+
+  .endwrap { padding: 1.6rem; }
+  .eyebrow { font-size: .64rem; text-transform: uppercase; letter-spacing: .12em; font-weight: 700; color: var(--muted); margin: 0 0 .7rem; }
+  .badges { display: grid; grid-template-columns: repeat(3, 1fr); gap: .55rem; margin-bottom: 1.4rem; }
+  @media (max-width: 34rem) { .badges { grid-template-columns: repeat(2, 1fr); } }
+  .badge {
+    border: 1px solid var(--border); border-radius: 10px; padding: .65rem .55rem;
+    text-align: center; opacity: .35; transition: opacity .4s, border-color .4s, background .4s;
+  }
+  .badge .ico { font-size: 1.15rem; }
+  .badge .nm { font-size: .7rem; font-weight: 700; margin-top: .15rem; line-height: 1.25; }
+  .badge .ds { font-size: .64rem; color: var(--muted); margin-top: .12rem; line-height: 1.3; }
+  .badge.earned { opacity: 1; border-color: var(--gold); background: var(--gold-soft); animation: badgeIn .5s cubic-bezier(.2,.9,.3,1.3) both; }
+  .badge.earned .nm { color: var(--gold); }
+  .nudge { background: var(--accent-soft); border-radius: 10px; padding: .9rem 1rem; font-size: .87rem; line-height: 1.55; margin-bottom: 1.3rem; }
+  .review { border-top: 1px solid var(--border); padding-top: 1rem; }
+  .row { padding: .8rem 0; border-bottom: 1px solid var(--border); font-size: .86rem; }
+  .row:last-child { border-bottom: 0; }
+  .row .q { font-weight: 600; margin-bottom: .3rem; }
+  .row .a { color: var(--muted); font-size: .78rem; line-height: 1.5; }
+  .row .a b { color: var(--text); font-weight: 600; }
+  .mark { font-weight: 700; margin-right: .3rem; }
+  .mark.ok { color: var(--correct); }
+  .mark.no { color: var(--wrong); }
+  .actions { display: flex; gap: .6rem; justify-content: center; margin-top: 1.4rem; flex-wrap: wrap; }
+  footer { text-align: center; font-size: .72rem; color: var(--muted); margin-top: 1.1rem; }
+  .hint { font-size: .72rem; color: var(--muted); margin: .9rem 0 0; }
+
+  /* ── scene art classes ───────────────────────────── */
+  .s-wall { fill: var(--wall); } .s-wall2 { fill: var(--wall2); }
+  .s-floor { fill: var(--floor); } .s-floor2 { fill: var(--floor2); }
+  .s-furn { fill: var(--furn); } .s-furn2 { fill: var(--furn2); }
+  .s-metal { fill: var(--metal); } .s-glass { fill: var(--glass); }
+  .s-sky { fill: var(--sky); } .s-screen { fill: var(--screen); }
+  .s-paper { fill: var(--paper); } .s-accent { fill: var(--accent); }
+  .s-gold { fill: var(--gold); } .s-red { fill: var(--wrong); } .s-green { fill: var(--correct); }
+  .s-skin1 { fill: var(--skin1); } .s-skin2 { fill: var(--skin2); } .s-skin3 { fill: var(--skin3); }
+  .s-c1 { fill: var(--cloth1); } .s-c2 { fill: var(--cloth2); } .s-c3 { fill: var(--cloth3); } .s-c4 { fill: var(--cloth4); }
+  .s-h1 { fill: var(--hair1); } .s-h2 { fill: var(--hair2); } .s-h3 { fill: var(--hair3); }
+  .s-shadow { fill: rgba(0,0,0,.13); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .001ms !important; animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+"use strict";
+/* ═══════════════════════════════════════════════════════════════════
+   THE SERVICELINK PROBLEM — a point-and-click product thinking game
+   Built on Singapore's Institute of Digital Government
+   "Product Thinking" pathway (AI Build 301).
+   ═══════════════════════════════════════════════════════════════════ */
+
+var GUIDE = "https://www.idg.gov.sg/guides-and-resources/";
+
+/* ── scene art primitives ─────────────────────────────────────────
+   Everything is drawn from a handful of shapes on an 800x400 stage.
+   Colours come from CSS classes so both themes work for free.       */
+
+function room(opt) {
+  opt = opt || {};
+  var wallH = opt.wallH || 300;
+  return '<rect class="s-wall" x="0" y="0" width="800" height="' + wallH + '"/>' +
+         '<rect class="s-wall2" x="0" y="0" width="800" height="46"/>' +
+         '<rect class="s-floor" x="0" y="' + wallH + '" width="800" height="' + (400 - wallH) + '"/>' +
+         '<rect class="s-floor2" x="0" y="' + wallH + '" width="800" height="7"/>';
+}
+
+function win(x, y, w, h) {
+  return '<rect class="s-metal" x="' + (x - 4) + '" y="' + (y - 4) + '" width="' + (w + 8) + '" height="' + (h + 8) + '" rx="3"/>' +
+         '<rect class="s-sky" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"/>' +
+         '<rect class="s-metal" x="' + (x + w / 2 - 2) + '" y="' + y + '" width="4" height="' + h + '"/>' +
+         '<rect class="s-metal" x="' + x + '" y="' + (y + h / 2 - 2) + '" width="' + w + '" height="4"/>';
+}
+
+function nightWin(x, y, w, h) {
+  return '<rect class="s-metal" x="' + (x - 4) + '" y="' + (y - 4) + '" width="' + (w + 8) + '" height="' + (h + 8) + '" rx="3"/>' +
+         '<rect style="fill:#1b2536" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"/>' +
+         '<g style="fill:#f0c86a">' +
+           '<rect x="' + (x + 12) + '" y="' + (y + 22) + '" width="7" height="9"/>' +
+           '<rect x="' + (x + 30) + '" y="' + (y + 40) + '" width="7" height="9"/>' +
+           '<rect x="' + (x + 52) + '" y="' + (y + 18) + '" width="7" height="9"/>' +
+           '<rect x="' + (x + 22) + '" y="' + (y + 62) + '" width="7" height="9"/>' +
+           '<rect x="' + (x + 64) + '" y="' + (y + 54) + '" width="7" height="9"/>' +
+         '</g>' +
+         '<rect class="s-metal" x="' + (x + w / 2 - 2) + '" y="' + y + '" width="4" height="' + h + '"/>';
+}
+
+function desk(x, y, w, h) {
+  h = h || 14;
+  return '<rect class="s-furn" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="3"/>' +
+         '<rect class="s-furn2" x="' + (x + 10) + '" y="' + (y + h) + '" width="10" height="' + (400 - y - h) + '"/>' +
+         '<rect class="s-furn2" x="' + (x + w - 20) + '" y="' + (y + h) + '" width="10" height="' + (400 - y - h) + '"/>';
+}
+
+function slab(x, y, w, h, cls) {
+  return '<rect class="' + (cls || 's-furn') + '" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="4"/>';
+}
+
+function monitor(x, y, w, h, on) {
+  return '<rect class="s-metal" x="' + (x - 3) + '" y="' + (y - 3) + '" width="' + (w + 6) + '" height="' + (h + 6) + '" rx="4"/>' +
+         '<rect class="' + (on ? 's-screen' : 's-metal') + '" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"/>' +
+         (on || '') +
+         '<rect class="s-metal" x="' + (x + w / 2 - 14) + '" y="' + (y + h + 3) + '" width="28" height="7" rx="2"/>';
+}
+
+function screenLines(x, y, w, n, cls) {
+  var out = '', i;
+  for (i = 0; i < n; i++) {
+    out += '<rect class="' + (cls || 's-glass') + '" x="' + (x + 8) + '" y="' + (y + 10 + i * 11) + '" width="' + (w - 16 - (i % 3) * 18) + '" height="4" rx="2" opacity="' + (0.85 - i * 0.08) + '"/>';
+  }
+  return out;
+}
+
+function person(x, ground, o) {
+  o = o || {};
+  var s = o.s || 1, hr = 15 * s, bw = 46 * s, total = 122 * s;
+  var top = ground - total, shoulder = top + hr * 2 + 5 * s;
+  var g = '<g>';
+  g += '<ellipse class="s-shadow" cx="' + x + '" cy="' + (ground + 2) + '" rx="' + (bw * 0.6) + '" ry="' + (6 * s) + '"/>';
+  if (o.longHair) g += '<rect class="' + (o.hair || 's-h1') + '" x="' + (x - hr - 3 * s) + '" y="' + (top + hr * 0.5) + '" width="' + (hr * 2 + 6 * s) + '" height="' + (hr * 2.6) + '" rx="' + hr + '"/>';
+  g += '<rect class="' + (o.cloth || 's-c1') + '" x="' + (x - bw / 2) + '" y="' + shoulder + '" width="' + bw + '" height="' + (ground - shoulder) + '" rx="' + (bw * 0.33) + '"/>';
+  g += '<circle class="' + (o.skin || 's-skin1') + '" cx="' + x + '" cy="' + (top + hr) + '" r="' + hr + '"/>';
+  g += '<path class="' + (o.hair || 's-h1') + '" d="M' + (x - hr) + ' ' + (top + hr - 1) + ' a' + hr + ' ' + hr + ' 0 0 1 ' + (hr * 2) + ' 0 z"/>';
+  g += '</g>';
+  return g;
+}
+
+function plant(x, ground) {
+  return '<path class="s-furn2" d="M' + (x - 16) + ' ' + ground + ' l4 -34 h24 l4 34 z"/>' +
+         '<g class="s-green">' +
+           '<ellipse cx="' + x + '" cy="' + (ground - 62) + '" rx="10" ry="22"/>' +
+           '<ellipse cx="' + (x - 15) + '" cy="' + (ground - 48) + '" rx="9" ry="18" transform="rotate(-28 ' + (x - 15) + ' ' + (ground - 48) + ')"/>' +
+           '<ellipse cx="' + (x + 15) + '" cy="' + (ground - 48) + '" rx="9" ry="18" transform="rotate(28 ' + (x + 15) + ' ' + (ground - 48) + ')"/>' +
+         '</g>';
+}
+
+function cabinet(x, ground) {
+  var g = '<rect class="s-metal" x="' + x + '" y="' + (ground - 130) + '" width="86" height="130" rx="3"/>';
+  for (var i = 0; i < 3; i++) {
+    g += '<rect class="s-wall2" x="' + (x + 8) + '" y="' + (ground - 122 + i * 42) + '" width="70" height="34" rx="2"/>';
+    g += '<rect class="s-furn2" x="' + (x + 34) + '" y="' + (ground - 108 + i * 42) + '" width="18" height="5" rx="2"/>';
+  }
+  return g;
+}
+
+function board(x, y, w, h, rows) {
+  var g = '<rect class="s-metal" x="' + (x - 4) + '" y="' + (y - 4) + '" width="' + (w + 8) + '" height="' + (h + 8) + '" rx="3"/>' +
+          '<rect class="s-paper" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"/>';
+  (rows || []).forEach(function (r, i) {
+    g += '<rect class="' + (r.c || 's-screen') + '" x="' + (x + 14) + '" y="' + (y + 16 + i * 17) + '" width="' + r.w + '" height="5" rx="2" opacity=".75"/>';
+  });
+  return g;
+}
+
+function papers(x, y) {
+  return '<g><rect class="s-paper" x="' + x + '" y="' + y + '" width="46" height="32" rx="2" transform="rotate(-6 ' + x + ' ' + y + ')"/>' +
+         '<rect class="s-paper" x="' + (x + 6) + '" y="' + (y - 3) + '" width="46" height="32" rx="2" transform="rotate(4 ' + x + ' ' + y + ')"/></g>';
+}
+
+function mug(x, y) {
+  return '<rect class="s-red" x="' + x + '" y="' + y + '" width="20" height="22" rx="3"/>' +
+         '<path class="s-red" d="M' + (x + 20) + ' ' + (y + 5) + ' q9 0 9 7 q0 7 -9 7 z"/>';
+}
+
+/* ── the eight scenes ─────────────────────────────────────────── */
+
+function artPostmortem() {
+  return room() +
+    win(60, 70, 150, 110) + win(600, 70, 150, 110) +
+    board(300, 62, 190, 120, [{ w: 130 }, { w: 96 }, { w: 150, c: 's-red' }, { w: 72 }, { w: 112 }]) +
+    person(250, 296, { cloth: 's-c1', skin: 's-skin1', hair: 's-h1', s: 0.94 }) +
+    person(400, 300, { cloth: 's-c3', skin: 's-skin2', hair: 's-h1', longHair: true, s: 0.98 }) +
+    person(548, 296, { cloth: 's-c4', skin: 's-skin3', hair: 's-h3', s: 0.92 }) +
+    slab(120, 300, 560, 22, 's-furn') +
+    '<rect class="s-furn2" x="150" y="322" width="500" height="10"/>' +
+    papers(300, 286) + mug(470, 278) +
+    '<rect class="s-paper" x="180" y="282" width="60" height="42" rx="2"/>' +
+    '<rect class="s-accent" x="180" y="282" width="60" height="9" rx="2"/>' +
+    plant(740, 300);
+}
+
+function artCounter() {
+  return room({ wallH: 290 }) +
+    '<rect class="s-wall2" x="0" y="46" width="800" height="26"/>' +
+    board(90, 90, 150, 96, [{ w: 100, c: 's-accent' }, { w: 120 }, { w: 80 }]) +
+    win(560, 78, 170, 110) +
+    cabinet(300, 290) +
+    person(160, 268, { cloth: 's-c2', skin: 's-skin2', hair: 's-h1', longHair: true, s: 0.92 }) +
+    slab(60, 268, 380, 20, 's-furn') +
+    '<rect class="s-furn2" x="60" y="288" width="380" height="42"/>' +
+    '<rect class="s-glass" x="60" y="196" width="380" height="72" opacity=".45"/>' +
+    '<rect class="s-paper" x="250" y="254" width="52" height="34" rx="2" transform="rotate(-5 250 254)"/>' +
+    person(600, 352, { cloth: 's-c1', skin: 's-skin1', hair: 's-h2', s: 1.12 }) +
+    '<rect class="s-metal" x="690" y="250" width="8" height="110" rx="4"/>' +
+    '<rect class="s-metal" x="470" y="250" width="8" height="110" rx="4"/>' +
+    '<path class="s-gold" d="M478 262 q106 22 212 0" stroke="var(--gold)" stroke-width="4" fill="none"/>';
+}
+
+function artDesk(night) {
+  var lit = !night;
+  return room() +
+    (night ? nightWin(520, 74, 200, 130) : win(520, 74, 200, 130)) +
+    (night ? '<rect style="fill:rgba(16,20,34,.34)" x="0" y="0" width="800" height="400"/>' : '') +
+    board(90, 74, 150, 104, [{ w: 110, c: 's-accent' }, { w: 88 }, { w: 124 }, { w: 70, c: 's-gold' }]) +
+    desk(150, 262, 460, 16) +
+    monitor(300, 156, 170, 106,
+      lit ? '<rect class="s-glass" x="300" y="156" width="170" height="106" opacity=".25"/>' + screenLines(300, 156, 170, 7, 's-glass')
+          : '<rect class="s-green" x="300" y="156" width="170" height="106" opacity=".14"/>' + screenLines(300, 156, 170, 6, 's-green')) +
+    '<rect class="s-furn2" x="330" y="268" width="110" height="10" rx="3"/>' +
+    papers(196, 244) + mug(560, 240) +
+    '<rect class="s-paper" x="470" y="242" width="62" height="36" rx="2" transform="rotate(7 470 242)"/>' +
+    (night ? '<circle cx="640" cy="196" r="34" style="fill:#f4d489" opacity=".22"/>' +
+             '<rect class="s-metal" x="632" y="200" width="8" height="62"/>' +
+             '<path class="s-gold" d="M614 196 h52 l-10 -20 h-32 z"/>' : '') +
+    plant(700, 300);
+}
+
+function artCommittee() {
+  return room() +
+    '<rect class="s-screen" x="250" y="60" width="300" height="150" rx="4"/>' +
+    '<rect class="s-metal" x="246" y="56" width="308" height="158" rx="5" opacity=".5"/>' +
+    screenLines(250, 60, 300, 5, 's-glass') +
+    '<rect class="s-gold" x="264" y="178" width="120" height="6" rx="3"/>' +
+    person(400, 292, { cloth: 's-c4', skin: 's-skin2', hair: 's-h3', longHair: true, s: 1.02 }) +
+    person(250, 296, { cloth: 's-c1', skin: 's-skin3', hair: 's-h2', s: 0.9 }) +
+    person(550, 296, { cloth: 's-c3', skin: 's-skin1', hair: 's-h1', s: 0.9 }) +
+    '<ellipse class="s-furn" cx="400" cy="330" rx="290" ry="42"/>' +
+    '<ellipse class="s-furn2" cx="400" cy="336" rx="290" ry="42" opacity=".55"/>' +
+    papers(330, 316) +
+    '<rect class="s-paper" x="470" y="316" width="52" height="30" rx="2"/>' +
+    plant(722, 300);
+}
+
+function artFloor() {
+  return room() +
+    '<rect class="s-screen" x="86" y="60" width="200" height="126" rx="4"/>' +
+    screenLines(86, 60, 200, 4, 's-green') +
+    '<rect class="s-screen" x="310" y="60" width="200" height="126" rx="4"/>' +
+    '<path class="s-gold" d="M322 160 L360 128 L398 142 L436 96 L474 108" fill="none" stroke="var(--gold)" stroke-width="5"/>' +
+    board(540, 60, 190, 126, [{ w: 140 }, { w: 118 }, { w: 152, c: 's-accent' }, { w: 94 }, { w: 130 }, { w: 74 }]) +
+    desk(120, 268, 250, 14) + desk(430, 268, 250, 14) +
+    monitor(180, 190, 120, 78, '<rect class="s-glass" x="180" y="190" width="120" height="78" opacity=".2"/>') +
+    person(470, 300, { cloth: 's-c2', skin: 's-skin1', hair: 's-h2', s: 0.96 }) +
+    papers(560, 250) + mug(620, 246) + plant(756, 300);
+}
+
+function artFinance() {
+  return room() +
+    win(90, 70, 140, 100) +
+    cabinet(660, 300) +
+    board(280, 66, 210, 118, [{ w: 160 }, { w: 130 }, { w: 176, c: 's-red' }, { w: 108 }, { w: 148 }]) +
+    desk(200, 270, 380, 16) +
+    person(300, 300, { cloth: 's-c4', skin: 's-skin3', hair: 's-h3', s: 0.96 }) +
+    monitor(420, 186, 140, 84, '<rect class="s-glass" x="420" y="186" width="140" height="84" opacity=".2"/>' + screenLines(420, 186, 140, 5, 's-glass')) +
+    papers(230, 252) +
+    '<rect class="s-paper" x="500" y="252" width="58" height="34" rx="2" transform="rotate(-8 500 252)"/>' +
+    '<rect class="s-screen" x="580" y="256" width="40" height="18" rx="3"/>';
+}
+
+function artCanteen() {
+  return room({ wallH: 286 }) +
+    win(80, 66, 180, 120) + win(540, 66, 180, 120) +
+    board(310, 74, 170, 104, [{ w: 120, c: 's-gold' }, { w: 92 }, { w: 134 }]) +
+    '<ellipse class="s-furn" cx="300" cy="316" rx="150" ry="34"/>' +
+    '<rect class="s-furn2" x="286" y="330" width="28" height="60"/>' +
+    person(212, 302, { cloth: 's-c3', skin: 's-skin2', hair: 's-h1', s: 0.94 }) +
+    person(392, 302, { cloth: 's-c1', skin: 's-skin1', hair: 's-h2', longHair: true, s: 0.94 }) +
+    mug(276, 292) + mug(320, 292) +
+    '<rect class="s-paper" x="230" y="300" width="46" height="14" rx="3"/>' +
+    '<ellipse class="s-furn" cx="640" cy="322" rx="110" ry="28"/>' +
+    '<rect class="s-furn2" x="628" y="334" width="24" height="56"/>' +
+    plant(760, 286);
+}
+
+var SCENES = {
+  postmortem: artPostmortem,
+  counter: artCounter,
+  desk: function () { return artDesk(false); },
+  committee: artCommittee,
+  floor: artFloor,
+  finance: artFinance,
+  canteen: artCanteen,
+  desklater: function () { return artDesk(true); }
+};
+
+/* ── evidence ─────────────────────────────────────────────────── */
+
+var EVIDENCE = {
+  "usage":     { ico: "📉", name: "The usage figures",        text: "Four hundred weekly actives. The business case projected ninety thousand. Nobody has re-forecast it; they simply stopped putting the slide in the deck." },
+  "case":      { ico: "📋", name: "The original business case", text: "Eleven pages. Benefits, milestones, a risk register. Not one sentence describing what a citizen was trying to do on the day they gave up." },
+  "rahim":     { ico: "🗣", name: "Ms Rahim's account",        text: "Nine years on the counter. “They come back three times, four times. It is always the documents. Always.”" },
+  "letter":    { ico: "✉️", name: "The notification letter",    text: "Generated from a template. It gives an office address, a reference number, and opening hours. It does not say what to bring." },
+  "template":  { ico: "🗄", name: "The unowned template",      text: "The letter template sits in a system frozen by a 2019 procurement decision. The last named owner left in 2021. Nobody replaced them." },
+  "logs":      { ico: "📊", name: "The abandonment logs",      text: "62% drop out at the document step. Every month. For two years. Nobody had asked the database this question before." },
+  "chua":      { ico: "🚌", name: "Mdm Chua's two buses",      text: "Gives up online, takes two buses to the counter, queues forty minutes. Costed at zero in every model you have." },
+  "dashboard": { ico: "🖥", name: "The proposed dashboard",     text: "Seven numbers your analyst wants on the wall. Six of them go up when the team is busy. None is the thing you promised." },
+  "rework":    { ico: "💷", name: "The rework costing",        text: "Finance's own figure for reprocessing one incomplete application. Multiply it by 62% of everything and the number gets your attention." },
+  "formsg":    { ico: "🧪", name: "The FormSG precedent",      text: "Health appointment booking. A form feeding a spreadsheet. Zero bookings from control, twenty-four from treatment — and people forwarded the link without being asked." },
+  "plan":      { ico: "🏗", name: "The eleven-week plan",      text: "Queued, audited, integrated with three agency systems. Genuinely good engineering. Eleven weeks before you learn anything at all." },
+  "paper":     { ico: "📮", name: "A letter, on paper",        text: "From a man of seventy-four. Four attempts across two afternoons. He would like you to know what the third attempt was like." },
+  "silence":   { ico: "🔇", name: "Eleven weeks of silence",   text: "Not one complaint reached your team. You had been reading that as a sign the thing was working." }
+};
+
+/* ── the eight decisions ──────────────────────────────────────────
+   Options are authored with the correct answer FIRST for legibility
+   and shuffled at runtime. Never rely on position here.            */
+
+var DECISIONS = [
+  {
+    module: "Understanding the Problem", url: GUIDE + "productthinking1/",
+    ask: "So why did ServiceLink fail?",
+    options: [
+      "They diagnosed the wrong underlying problem",
+      "They selected the wrong technical stack",
+      "They shipped before the market matured",
+      "They under-resourced the delivery team badly"
+    ],
+    answer: 0,
+    win: "The room goes quiet. “We never established that anyone wanted this,” you say, and nobody argues, because nobody can. You leave with three months and a very small budget.",
+    lose: "Heads nod. Someone opens a procurement template before the meeting ends. You have just authorised a faithful rebuild of the same mistake, in a different language.",
+    explanation: "Projects fail <em>despite</em> strong execution when they address the wrong problem. Execution quality cannot rescue a misdiagnosis — which is why “great digital products start with problems, not solutions.”"
+  },
+  {
+    module: "Start With The Whys", url: GUIDE + "productthinking2/",
+    ask: "Five links in the chain. Which one do you go after?",
+    options: [
+      "The one you control, nearest the outcome",
+      "The final one, deepest in the chain",
+      "The first one, closest to the symptom",
+      "The one your stakeholders most readily accept"
+    ],
+    answer: 0,
+    win: "You take the unowned template. It is unglamorous, it is genuinely yours, and it sits directly upstream of every abandoned application in Ms Rahim's queue.",
+    lose: "“Reform procurement culture” goes on the slide. It is entirely true. It will still be entirely true in five years, and you will not have shipped a thing.",
+    explanation: "IDG is explicit that “problems rarely have one root cause.” Two tests: the cause must be <b>within your control</b> and <b>closely connected to the outcome</b>. Going deepest is the common misreading — push far enough and you always arrive at something true and unactionable."
+  },
+  {
+    module: "Craft a Clear Problem Statement", url: GUIDE + "productthinking3/",
+    ask: "Clarity, Consequence, Cause. What is your statement still missing?",
+    options: [
+      "Confirmation — the evidence the problem exists",
+      "Consequence — the measurable impact on people",
+      "Clarity — one plainly stated problem definition",
+      "Cause — the underlying driver beneath symptoms"
+    ],
+    answer: 0,
+    needFor: "logs",
+    win: "You put the abandonment logs on the slide: 62% at the document step, every month, for two years. On Thursday the Permanent Secretary reads it, looks up, and asks nothing at all.",
+    winAlt: "You spot the gap — and have nothing to fill it with. On Thursday she asks how you know, and the honest answer is that you do not. You get the funding, but you spend your first fortnight proving what you could have proved last week.",
+    lose: "You describe the impact more vividly instead. She has sat through vivid before. What she asked for was evidence, and she notices you did not have any.",
+    explanation: "Confirmation is the slot teams skip, and it is the one separating a problem statement from an opinion. The goal is “one sharp, data-backed problem statement before any build begins.” Without it you have a hypothesis about a problem, not a problem."
+  },
+  {
+    module: "Key Takeaways", url: GUIDE + "productthinking7/",
+    ask: "“Come back in two quarters and tell me it worked.” What will *worked* mean?",
+    options: [
+      "Citizens stop re-entering the same details",
+      "The unified government form portal launches",
+      "Twelve agency systems are integrated successfully",
+      "The department publishes its data standard"
+    ],
+    answer: 0,
+    win: "You write it on the wall where the team can see it. Within a fortnight someone kills their own feature because it would not move that number. That is the measure doing its job.",
+    lose: "You pick the milestone. It is crisp, countable, and hit exactly on schedule — and two quarters later the abandonment rate has not moved a single point.",
+    explanation: "Outputs are what you delivered; outcomes are what changed. The other three all measure delivery activity, and will happily go up while nothing improves for anyone. Define success “by the change achieved, not the features delivered.”"
+  },
+  {
+    module: "Metrics", url: GUIDE + "productthinking4/",
+    ask: "What goes on the wall, and how do the two kinds of number relate?",
+    options: [
+      "Leading gives early feedback; lagging measures outcomes",
+      "Leading measures outcomes; lagging confirms early feedback",
+      "Leading tracks spending; lagging tracks delivered value",
+      "Leading suits executives; lagging suits delivery teams"
+    ],
+    answer: 0,
+    win: "Checklist opens go on the weekly board, abandonment on the quarterly one, and you draw an arrow between them. Everyone can see which number is the promise and which is the early warning.",
+    lose: "The weekly number becomes the goal. By March the team is proudly growing a metric nobody outside this floor can connect to one citizen completing one form.",
+    explanation: "Straight from the module. A leading indicator earns its place only if it genuinely <em>causes</em> the lagging one. The trap the exercise exposes: map your chain and you often find the metric you have been reporting is a leading indicator your team quietly started treating as the outcome itself."
+  },
+  {
+    module: "Metrics — Value-Cost Ratio", url: GUIDE + "productthinking4/",
+    ask: "Finance want a value-cost ratio. How much weight should it carry?",
+    options: [
+      "As one input among other considerations that matter",
+      "As the single decisive test for approving funding",
+      "As a direct replacement for all outcome metrics",
+      "As a retrospective measure taken after full delivery"
+    ],
+    answer: 0,
+    win: "You hand over the ratio and, beside it, the things it cannot hold — Mdm Chua's two buses among them. Finance respect the distinction more than they would have respected a rounder number.",
+    lose: "You reduce it to one figure. It is a good figure, so the project survives — and you have quietly taught this committee that whatever resists pricing does not count.",
+    explanation: "The module states the caveat plainly: “not all public-sector value can or should be expressed in dollars.” VCR’s real use is the follow-up question — not “what is my ratio” but “what would need to change to improve it?”, which points at either cheaper delivery or unclaimed value."
+  },
+  {
+    module: "Assumptions and Risks", url: GUIDE + "productthinking5/",
+    ask: "Eleven weeks of engineering, or something else first?",
+    options: [
+      "Lowest-cost way to validate genuine user demand",
+      "Fastest path to a scalable production system",
+      "Simplest option that satisfied procurement rules fully",
+      "Best design for long-term maintenance and support"
+    ],
+    answer: 0,
+    win: "You send four hundred letters by hand. It does not scale and was never meant to — by Thursday you know the new wording works, at a cost of one afternoon and a sore wrist.",
+    lose: "You commission the eleven-week build. It arrives beautifully engineered, and only then do you discover the new wording confuses people very slightly more than the old one did.",
+    explanation: "IDG’s own words: “this is not scalable, but it was the lowest-cost way to validate.” The A/B test returned <b>zero bookings from control versus 24 from treatment</b>, with users sharing the link unprompted — the strongest demand signal there is, because nobody asked them to. Against technical risk the goal is testability, not scalability."
+  },
+  {
+    module: "A Good Customer Experience", url: GUIDE + "productthinking6/",
+    ask: "One letter in eleven weeks. What do you do with it?",
+    options: [
+      "Users lack alternatives, so dissatisfaction generates no signal",
+      "Government teams rarely receive funding for dedicated research",
+      "Public services face stricter accessibility rules than industry",
+      "Citizens report problems through channels teams rarely read"
+    ],
+    answer: 0,
+    win: "You go looking on purpose. Eleven more people, the same struggle, not one of whom had thought to complain — because where exactly would they have gone instead?",
+    lose: "You file it as an outlier. It was not an outlier. It was the only one of eleven hundred who happened to own a stamp and the stubbornness to use it.",
+    explanation: "“This matters especially for essential public services, where people may not have alternatives.” In a market, bad UX shows up as churn and gets fixed. In a mandatory service it produces silence. Hence the 11-Star Framework: imagine an absurdly good experience, then work backwards to what is feasible — because starting from “what is realistic” anchors you to a mediocre product."
+  }
+];
+
+/* ── the eight locations ──────────────────────────────────────── */
+
+var LOCATIONS = [
+  {
+    id: "postmortem", chapter: 0, place: "Meeting Room 3-04", time: "Monday, 09:00",
+    intro: "<p>Twelve people around a table, and every one of them arrived with a theory.</p><p>You have the file. You have not said anything yet.</p>",
+    need: ["usage", "case"],
+    hotspots: [
+      { id: "eng", x: 31, y: 58, label: "Engineering lead", type: "talk", lines: [
+        { who: "Engineering Lead", text: "“The stack was wrong. We were fighting the framework from sprint one — that is where the velocity went.”" },
+        { who: "Engineering Lead", text: "“Give me a rewrite in something modern and I will give you the same scope in half the time.”" },
+        { text: "She may well be right about all of it. It does not explain four hundred users." }
+      ] },
+      { id: "dm", x: 50, y: 58, label: "Delivery manager", type: "talk", lines: [
+        { who: "Delivery Manager", text: "“We were three people short for two quarters. Nobody wants to write that in a post-mortem, so I am writing it here.”" },
+        { text: "You note it down. Understaffed teams ship late. This one shipped on time." }
+      ] },
+      { id: "dir", x: 68, y: 58, label: "Someone from Policy", type: "talk", lines: [
+        { who: "Policy Director", text: "“I will say the unpopular thing. We consulted nobody outside this building. Not once.”" },
+        { text: "Nobody picks it up. The conversation moves back to headcount within nine seconds." }
+      ] },
+      { id: "board", x: 40, y: 20, label: "The whiteboard", type: "look", lines: [
+        { text: "Someone has written CAUSES and underlined it twice. Beneath: <em>tech debt, resourcing, scope creep, comms</em>. Four items, all of them about the team, none of them about a citizen." }
+      ] },
+      { id: "file", x: 26, y: 73, label: "The project file", type: "look", gives: "usage", lines: [
+        { text: "You open it to the usage page, which someone has stopped updating. Four hundred weekly actives. The projection beside it still reads ninety thousand." }
+      ] },
+      { id: "papers", x: 38, y: 73, label: "A thick binder", type: "look", gives: "case", lines: [
+        { text: "The original business case. Benefits, milestones, a risk register, eleven pages of it." },
+        { text: "You read it twice looking for a description of a person trying to do something. There is not one." }
+      ] },
+      { id: "window", x: 17, y: 30, label: "The window", type: "look", lines: [
+        { text: "Three floors down, a queue outside the service centre. Forty people, in the rain, for a service that has a website." }
+      ] },
+      { id: "act", x: 88, y: 46, label: "Say what you think", type: "act" }
+    ]
+  },
+  {
+    id: "counter", chapter: 0, place: "Service Centre, Level 1", time: "Tuesday, all day",
+    intro: "<p>You skip the Tuesday steering meeting and go downstairs instead.</p><p>Nobody at the counter knows who you are, which turns out to be useful.</p>",
+    need: ["rahim", "letter", "template"],
+    hotspots: [
+      { id: "officer", x: 20, y: 55, label: "Ms Rahim, counter officer", type: "talk", gives: "rahim", lines: [
+        { who: "Ms Rahim", text: "“You want to know the problem? They come back three times. Four times. It is always the documents. Always.”" },
+        { who: "Ms Rahim", text: "“I have been saying this for nine years. Someone came to ask me once, in 2019. Nothing happened.”" },
+        { text: "You ask whether anyone from the ServiceLink project ever came down here. She laughs, not unkindly." }
+      ] },
+      { id: "citizen", x: 75, y: 72, label: "A man in the queue", type: "talk", lines: [
+        { who: "In the queue", text: "“Second time. They sent me a letter with the address on it, so I came, and now they want a document the letter did not mention.”" },
+        { text: "He is not angry. That is somehow worse. He has simply budgeted a third morning for this." }
+      ] },
+      { id: "letter", x: 32, y: 64, label: "A notification letter", type: "look", gives: "letter", lines: [
+        { text: "You pick one off the counter. Reference number. Office address. Opening hours. A polite closing line." },
+        { text: "Nowhere on it does it say what to bring." }
+      ] },
+      { id: "cabinet", x: 43, y: 56, label: "The filing cabinet", type: "look", gives: "template", lines: [
+        { text: "Taped inside the door, a printed notice: <em>letter templates — system frozen pending procurement review, Nov 2019</em>." },
+        { text: "You ask who owns the template now. Three people give you three different names. The last one left in 2021." }
+      ] },
+      { id: "poster", x: 21, y: 28, label: "Service pledge poster", type: "look", lines: [
+        { text: "<em>We aim to serve you within 15 minutes.</em> Someone has pencilled a small tally in the corner. It is not encouraging." }
+      ] },
+      { id: "act", x: 60, y: 38, label: "Decide where to cut", type: "act" }
+    ]
+  },
+  {
+    id: "desk", chapter: 1, place: "Your desk", time: "Wednesday, late",
+    intro: "<p>Steering committee is tomorrow. You have one slide and three of the four Cs.</p><p>The problem is clear, the consequence is real, the cause is named. Something is still thin.</p>",
+    need: ["chua"],
+    hotspots: [
+      { id: "computer", x: 48, y: 50, label: "Query the database", type: "look", gives: "logs", lines: [
+        { text: "Nobody has asked the application database this particular question before. It takes eleven minutes to answer it." },
+        { text: "62% drop out at the document step. Every month. For two years." }
+      ] },
+      { id: "casefile", x: 61, y: 63, label: "A complaint file", type: "look", gives: "chua", lines: [
+        { text: "Mdm Chua, 81. Gave up online, took two buses to the counter, queued forty minutes, was turned away for a missing document, went home." },
+        { text: "In every model you have, her morning costs the agency nothing at all." }
+      ] },
+      { id: "papers", x: 26, y: 63, label: "Your draft slide", type: "look", lines: [
+        { text: "<em>Citizens abandon applications</em> — clarity. <em>It costs us rework and them time</em> — consequence. <em>The notification omits required documents</em> — cause." },
+        { text: "Three sentences you believe. Three sentences you cannot yet prove." }
+      ] },
+      { id: "mug", x: 71, y: 61, label: "Cold coffee", type: "look", lines: [
+        { text: "Third of the evening. You are the last one on the floor, which is its own kind of warning sign." }
+      ] },
+      { id: "board", x: 20, y: 30, label: "The chain, copied out", type: "look", lines: [
+        { text: "<em>Abandonment → missing documents → nobody said what to bring → template nobody owns → procurement froze it in 2019.</em>" },
+        { text: "You have circled the fourth link. It is the one you can actually reach." }
+      ] },
+      { id: "act", x: 85, y: 45, label: "Finish the statement", type: "act" }
+    ]
+  },
+  {
+    id: "committee", chapter: 1, place: "Committee Room A", time: "Thursday, 14:00",
+    intro: "<p>One slide, eight minutes, eleven people who have all seen a project like yours before.</p>",
+    need: [],
+    hotspots: [
+      { id: "ps", x: 50, y: 58, label: "The Permanent Secretary", type: "talk", lines: [
+        { who: "Perm Sec", text: "“Funding approved. Conditionally.”" },
+        { who: "Perm Sec", text: "“Come back in two quarters and tell me it worked. I would like to know now what you are going to mean by that word.”" },
+        { text: "Whatever you write down, fourteen people will optimise for it every day, long after anyone remembers why it was chosen." }
+      ] },
+      { id: "sceptic", x: 31, y: 60, label: "A sceptical director", type: "talk", lines: [
+        { who: "Director", text: "“The last team promised me a portal by March. They delivered a portal by March. I am told that is a success story.”" },
+        { text: "He is being sarcastic. He is also, precisely, describing the trap in front of you." }
+      ] },
+      { id: "ally", x: 69, y: 60, label: "Someone taking notes", type: "talk", lines: [
+        { who: "Policy Director", text: "“Whatever you pick, pick something my team cannot quietly hit without helping anybody.”" }
+      ] },
+      { id: "screen", x: 37, y: 22, label: "Your slide, projected", type: "look", lines: [
+        { text: "Four lines on a white field. It took a week at the counter and eleven minutes of database time to earn the fourth one." }
+      ] },
+      { id: "act", x: 85, y: 50, label: "Define success", type: "act" }
+    ]
+  },
+  {
+    id: "floor", chapter: 2, place: "The team floor", time: "Three weeks later",
+    intro: "<p>Fourteen people, two sprints in, and a wall waiting for numbers.</p><p>The abandonment rate is the thing you promised. You will not have a trustworthy reading of it for a full quarter.</p>",
+    need: ["dashboard"],
+    hotspots: [
+      { id: "analyst", x: 59, y: 58, label: "Your analyst", type: "talk", gives: "dashboard", lines: [
+        { who: "Analyst", text: "“Seven numbers. Tickets closed, deploys, response time, uptime, letters sent, checklist opens, satisfaction score.”" },
+        { who: "Analyst", text: "“Six of them go up when we are busy. I assume that is what you want?”" },
+        { text: "She is testing you. She already knows it is not." }
+      ] },
+      { id: "greens", x: 23, y: 30, label: "The delivery board", type: "look", lines: [
+        { text: "All green. Every number on it measures how hard the team is working. Not one measures whether it landed." }
+      ] },
+      { id: "chart", x: 51, y: 30, label: "The outcome chart", type: "look", lines: [
+        { text: "Abandonment, quarterly. Two data points so far, and the second will not arrive until March." },
+        { text: "It is the only line that matters and it is almost entirely empty." }
+      ] },
+      { id: "board2", x: 79, y: 30, label: "Sprint wall", type: "look", lines: [
+        { text: "Someone has written CHECKLIST OPENS in the weekly column and put a question mark beside it. Good instinct. Wrong column, unless you can say why." }
+      ] },
+      { id: "act", x: 85, y: 62, label: "Choose what goes up", type: "act" }
+    ]
+  },
+  {
+    id: "finance", chapter: 2, place: "Finance, Level 6", time: "The following Tuesday",
+    intro: "<p>Finance have questions, and they are reasonable ones.</p><p>Your rebuild costs roughly what two experienced officers cost for a year.</p>",
+    need: ["rework"],
+    hotspots: [
+      { id: "officer", x: 37, y: 58, label: "Finance officer", type: "talk", gives: "rework", lines: [
+        { who: "Finance", text: "“We already price a reprocessed application. Here is the figure. Multiply it by your 62% and you have a number I can defend.”" },
+        { who: "Finance", text: "“What I cannot defend is a business case with a feeling in it. Give me the ratio.”" },
+        { text: "The ratio will be good. That is exactly what makes the next part difficult." }
+      ] },
+      { id: "monitor", x: 61, y: 57, label: "The costing model", type: "look", lines: [
+        { text: "Rows for staff hours, licences, and hardware. No row anywhere for a morning spent on two buses." }
+      ] },
+      { id: "board", x: 44, y: 22, label: "Budget wall", type: "look", lines: [
+        { text: "Last year's approvals, ranked by return. The three at the bottom are all the ones a citizen would recognise as services." }
+      ] },
+      { id: "papers", x: 30, y: 65, label: "Mdm Chua's file, again", type: "look", lines: [
+        { text: "You brought it with you. You are not sure yet whether that was sentiment or strategy." }
+      ] },
+      { id: "cabinet", x: 87, y: 56, label: "Archive cabinet", type: "look", lines: [
+        { text: "Eleven years of business cases. Every one of them survived a ratio. Several of them served nobody." }
+      ] },
+      { id: "act", x: 15, y: 45, label: "Answer Finance", type: "act" }
+    ]
+  },
+  {
+    id: "canteen", chapter: 3, place: "The canteen", time: "Thursday, 10:40",
+    intro: "<p>The redesigned notification is ready to test. Your architect has a plan and a timeline.</p><p>You have come downstairs for coffee and accidentally found the more useful conversation.</p>",
+    need: ["formsg", "plan"],
+    hotspots: [
+      { id: "colleague", x: 26, y: 58, label: "Someone from Health", type: "talk", gives: "formsg", lines: [
+        { who: "Health colleague", text: "“Appointment booking? We started with a FormSG form feeding a spreadsheet. Genuinely. A spreadsheet.”" },
+        { who: "Health colleague", text: "“Zero bookings from control. Twenty-four from treatment. And people started forwarding the link to each other — nobody asked them to.”" },
+        { who: "Health colleague", text: "“It was never going to scale. It was the cheapest way to find out we were right.”" }
+      ] },
+      { id: "architect", x: 49, y: 58, label: "Your architect", type: "talk", gives: "plan", lines: [
+        { who: "Architect", text: "“Queued, audited, integrated with three systems, proper retry semantics. Eleven weeks. It is the right way to build it.”" },
+        { text: "It is the right way to build it. That is a different question from whether to build it yet." }
+      ] },
+      { id: "board", x: 44, y: 25, label: "The noticeboard", type: "look", lines: [
+        { text: "A laminated poster for an innovation awards scheme. Judging criteria: scale, ambition, technical sophistication." },
+        { text: "Nothing at all about whether the thing worked." }
+      ] },
+      { id: "mugs", x: 36, y: 74, label: "Two cold coffees", type: "look", lines: [
+        { text: "Yours and hers. This conversation has run twenty minutes past the time you meant to give it, and it is the best twenty minutes of the week." }
+      ] },
+      { id: "act", x: 70, y: 45, label: "Decide the first build", type: "act" }
+    ]
+  },
+  {
+    id: "desklater", chapter: 3, place: "Your desk", time: "Eleven weeks later, 19:20",
+    intro: "<p>Live for eleven weeks. Abandonment down thirty-one points.</p><p>The committee has moved on to somebody else's problem. And then the post arrives.</p>",
+    need: ["paper", "silence"],
+    hotspots: [
+      { id: "letter", x: 61, y: 63, label: "A letter, on paper", type: "look", gives: "paper", lines: [
+        { text: "Handwritten. Seventy-four years old. He completed the form — he wants you to know that first, so you do not worry." },
+        { text: "It took four attempts across two afternoons. He would like to tell you about the third." }
+      ] },
+      { id: "monitor", x: 48, y: 50, label: "The dashboard", type: "look", gives: "silence", lines: [
+        { text: "Every number green. Abandonment down thirty-one points. Satisfaction steady at 4.1." },
+        { text: "Eleven weeks, eleven hundred applications, and not one complaint had reached your team. You had been reading that as good news." }
+      ] },
+      { id: "papers", x: 26, y: 63, label: "The unread tray", type: "look", lines: [
+        { text: "Congratulations from two directors and an invitation to present at a conference on digital transformation." }
+      ] },
+      { id: "lamp", x: 80, y: 49, label: "The desk lamp", type: "look", lines: [
+        { text: "Last one on the floor again. It was more fun the first time, when nobody thought the project would work." }
+      ] },
+      { id: "act", x: 85, y: 45, label: "Decide what this means", type: "act" }
+    ]
+  }
+];
+
+var CHAPTERS = [
+  { name: "Proof of Concept", sub: "cheap enough to be wrong" },
+  { name: "Proof of Value",   sub: "worth building at all" },
+  { name: "Scale",            sub: "it has to work for everyone" },
+  { name: "Maturity",         sub: "keep it honest as it grows" }
+];
+
+var ENDINGS = [
+  { min: 8, name: "Product Thinker",
+    text: "Two quarters on, the Permanent Secretary asks how you did it. You tell her the truth: for the first three weeks, you did not build anything at all." },
+  { min: 6, name: "Problem-Framer",
+    text: "ServiceLink works. Not for everyone — there is a cohort you never designed for, and you can name them. That is the next problem, and you now know how to find it." },
+  { min: 3, name: "Problem-Curious",
+    text: "The service is better than it was. You cannot fully explain why, which means you cannot reliably do it again. Go back and find which decision carried the weight." },
+  { min: 0, name: "Solution-First",
+    text: "It shipped. It is beautiful. The abandonment rate is unchanged, and somewhere a folder is being dropped on somebody else's desk." }
+];
+
+var BADGES = [
+  { id: "root",     ico: "🔎", name: "Root Cause",          desc: "Chose the controllable cause",   test: function (s) { return s.at[1]; } },
+  { id: "data",     ico: "📊", name: "Show Me The Data",    desc: "Brought evidence, not vividness", test: function (s) { return s.at[2] && s.held("logs"); } },
+  { id: "sheet",    ico: "📄", name: "Spreadsheet Shipper", desc: "Testability over scalability",    test: function (s) { return s.at[6]; } },
+  { id: "stars",    ico: "✨", name: "Eleven Stars",        desc: "Went looking for the silence",    test: function (s) { return s.at[7]; } },
+  { id: "thorough", ico: "🔦", name: "Thorough",            desc: "Found every piece of evidence",   test: function (s) { return s.evidence === EVIDENCE_TOTAL; } },
+  { id: "clean",    ico: "🎯", name: "Clean Run",           desc: "Eight decisions, no misses",      test: function (s) { return s.correct === TOTAL; } }
+];
+
+var TOTAL = DECISIONS.length;
+var EVIDENCE_TOTAL = Object.keys(EVIDENCE).length;
+var BASE = 100;
+var FIND = 25;
+var BEST_KEY = "servicelink-best-v3";
+
+/* ═══════════════════════════════════════════════════════════════════
+   ENGINE
+   ═══════════════════════════════════════════════════════════════════ */
+
+var app = document.getElementById("app");
+var state;
+
+function multiplier(streak) {
+  if (streak >= 4) return 2.0;
+  if (streak === 3) return 1.5;
+  if (streak === 2) return 1.2;
+  return 1.0;
+}
+function streakLabel(streak) {
+  if (streak >= 4) return "Shipping";
+  if (streak === 3) return "Dialled in";
+  if (streak === 2) return "On a roll";
+  return "";
+}
+
+var MAX_POINTS = (function () {
+  var t = 0;
+  for (var i = 1; i <= TOTAL; i++) t += Math.round(BASE * multiplier(i));
+  return t + EVIDENCE_TOTAL * FIND;
+})();
+
+/* Fisher-Yates: the correct answer never sits in a predictable slot. */
+function shuffle(n) {
+  var a = [], i, j, t;
+  for (i = 0; i < n; i++) a.push(i);
+  for (j = a.length - 1; j > 0; j--) {
+    i = Math.floor(Math.random() * (j + 1));
+    t = a[j]; a[j] = a[i]; a[i] = t;
+  }
+  return a;
+}
+
+function reset() {
+  state = {
+    screen: "title", loc: 0, found: {}, evidence: 0,
+    points: 0, correct: 0, streak: 0, bestStreak: 0,
+    seen: {}, log: [], dialog: null, gained: null,
+    decision: null, orders: []
+  };
+}
+
+function loadBest() {
+  try { var r = localStorage.getItem(BEST_KEY); return r ? JSON.parse(r) : null; }
+  catch (e) { return null; }
+}
+function saveBest(run) {
+  try {
+    var prev = loadBest();
+    if (!prev || run.points > prev.points) { localStorage.setItem(BEST_KEY, JSON.stringify(run)); return true; }
+  } catch (e) { /* blocked storage — the game does not depend on it */ }
+  return false;
+}
+
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function reduced() {
+  return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+function countUp(node, to, ms) {
+  if (!node) return;
+  if (reduced() || to === 0) { node.textContent = to.toLocaleString(); return; }
+  var start = performance.now();
+  (function step(now) {
+    var t = Math.min(1, (now - start) / ms);
+    node.textContent = Math.round(to * (1 - Math.pow(1 - t, 3))).toLocaleString();
+    if (t < 1) requestAnimationFrame(step);
+  })(performance.now());
+}
+
+function here() { return LOCATIONS[state.loc]; }
+function seenHere() { state.seen[here().id] = state.seen[here().id] || {}; return state.seen[here().id]; }
+function unlocked() {
+  return here().need.every(function (id) { return state.found[id]; });
+}
+function missingCount() {
+  return here().need.filter(function (id) { return !state.found[id]; }).length;
+}
+
+/* ── render ───────────────────────────────────────────────────── */
+
+function render() {
+  if (state.screen === "title") return renderTitle();
+  if (state.screen === "end") return renderEnd();
+  renderPlay();
+}
+
+function renderTitle() {
+  var best = loadBest();
+  app.innerHTML =
+    '<div class="frame">' +
+      '<div class="stage">' + '<svg viewBox="0 0 800 400" role="img" aria-label="An empty government meeting room">' + artPostmortem() + '</svg></div>' +
+      '<div class="title">' +
+        '<div class="sub">A product thinking adventure</div>' +
+        '<h1>The ServiceLink Problem</h1>' +
+        '<div class="prose">' +
+          '<p>Six months ago ServiceLink launched. On time. Under budget. A defect rate low enough to be framed on a wall.</p>' +
+          '<p>Nobody uses it. This morning it became your problem.</p>' +
+          '<p>Search the rooms. Talk to people. Gather evidence — then make eight decisions you cannot take back. The ones who got this wrong in real life were not stupid; they were simply in a hurry.</p>' +
+        '</div>' +
+        '<button class="btn" id="go">Take the file</button>' +
+        (best ? '<p class="best">Best run: <b>' + best.points.toLocaleString() + '</b> pts · ' + best.correct + '/' + TOTAL +
+                ' decisions · ' + best.evidence + '/' + EVIDENCE_TOTAL + ' evidence</p>' : '') +
+        '<p class="hint">Click the glowing points to look and talk · <b>1</b>–<b>4</b> to decide</p>' +
+      '</div>' +
+    '</div>' +
+    '<footer>Built on the <a href="https://www.idg.gov.sg/product-thinking/">IDG Product Thinking pathway</a></footer>';
+  var go = document.getElementById("go");
+  go.addEventListener("click", start);
+  go.focus();
+}
+
+function start() {
+  var keep = loadBest();
+  reset();
+  state.screen = "play";
+  state.hadBest = keep;
+  state.orders = DECISIONS.map(function (d) { return shuffle(d.options.length); });
+  state.dialog = { lines: [{ text: here().intro, raw: true }], idx: 0 };
+  render();
+}
+
+function renderPlay() {
+  var L = here(), ch = CHAPTERS[L.chapter], seen = seenHere();
+
+  var html = '<div class="frame" style="position:relative">' +
+    '<div class="topbar">' +
+      '<div class="chap"><b>Chapter ' + (L.chapter + 1) + ' · ' + esc(ch.name) + '</b> ' +
+        '<span class="place">— ' + esc(L.place) + ', ' + esc(L.time) + '</span></div>' +
+      '<div class="stats">' +
+        '<span>Evidence <b>' + state.evidence + '/' + EVIDENCE_TOTAL + '</b></span>' +
+        '<span><b id="score">' + state.points.toLocaleString() + '</b> pts</span>' +
+        (state.streak >= 2 ? '<span class="hot">' + streakLabel(state.streak) + ' ' + multiplier(state.streak).toFixed(1) + '×</span>' : '') +
+      '</div>' +
+    '</div>' +
+    '<div class="stage enter" id="stage">' +
+      '<svg viewBox="0 0 800 400" role="img" aria-label="' + esc(L.place) + '">' + SCENES[L.id]() + '</svg>';
+
+  L.hotspots.forEach(function (h) {
+    var isAct = h.type === "act";
+    var done = !isAct && seen[h.id];
+    var cls = "hot" + (done ? " done" : "") + (isAct && unlocked() ? " key" : "");
+    var note = isAct && !unlocked() ? '<span class="locknote">' + missingCount() + ' more to find</span>' : "";
+    html += '<button class="' + cls + '" data-h="' + h.id + '" style="left:' + h.x + '%;top:' + h.y + '%" ' +
+            'aria-label="' + esc(h.label) + '"><span class="tip">' + esc(h.label) + note + '</span></button>';
+  });
+  html += '</div>';
+
+  html += '<div class="narr" id="narr">' + narrHTML() + '</div>';
+
+  html += '<div class="tray"><span class="tray-label">Evidence</span>';
+  var keys = Object.keys(EVIDENCE);
+  keys.forEach(function (k) {
+    if (state.found[k]) {
+      html += '<button class="item' + (state.gained === k ? " fresh" : "") + '" data-e="' + k + '" ' +
+              'title="' + esc(EVIDENCE[k].name) + '" aria-label="' + esc(EVIDENCE[k].name) + '">' + EVIDENCE[k].ico + '</button>';
+    }
+  });
+  for (var i = state.evidence; i < EVIDENCE_TOTAL; i++) html += '<span class="slot"></span>';
+  html += '<span class="count">' + state.evidence + ' / ' + EVIDENCE_TOTAL + '</span></div>';
+
+  html += '</div>';
+  app.innerHTML = html;
+
+  document.querySelectorAll(".hot").forEach(function (b) {
+    b.addEventListener("click", function () { touch(this.getAttribute("data-h")); });
+  });
+  document.querySelectorAll(".item").forEach(function (b) {
+    b.addEventListener("click", function () { inspect(this.getAttribute("data-e")); });
+  });
+  var cont = document.getElementById("cont");
+  if (cont) { cont.addEventListener("click", advanceDialog); cont.focus(); }
+  var act = document.getElementById("actnow");
+  if (act) { act.addEventListener("click", openDecision); act.focus(); }
+
+  if (state.decision) drawDecision();
+}
+
+function narrHTML() {
+  var out = "";
+  if (state.dialog) {
+    var line = state.dialog.lines[state.dialog.idx];
+    out += '<div class="line">' +
+      (line.who ? '<span class="who">' + esc(line.who) + '</span>' : "") +
+      (line.raw ? line.text : "<p>" + line.text + "</p>") + "</div>";
+    if (state.dialog.idx < state.dialog.lines.length - 1) {
+      out += '<button class="btn ghost" id="cont" style="padding:.35rem .8rem;font-size:.8rem">Continue</button>';
+    }
+  }
+  if (state.gained) {
+    out += '<div class="gain">' + EVIDENCE[state.gained].ico + " Evidence found — " + esc(EVIDENCE[state.gained].name) + " · +" + FIND + "</div>";
+  }
+  if ((!state.dialog || state.dialog.idx >= state.dialog.lines.length - 1) && unlocked() && !state.decision) {
+    var L = here();
+    var actHot = L.hotspots.filter(function (h) { return h.type === "act"; })[0];
+    out += '<div style="margin-top:.7rem"><button class="btn" id="actnow">' + esc(actHot.label) + ' →</button></div>';
+  }
+  return out;
+}
+
+/* ── interaction ──────────────────────────────────────────────── */
+
+function touch(id) {
+  var L = here();
+  var h = L.hotspots.filter(function (x) { return x.id === id; })[0];
+  if (!h) return;
+
+  if (h.type === "act") {
+    if (!unlocked()) {
+      state.dialog = { lines: [{ text: "Not yet. You can feel the shape of it, but you could not defend a word of it in that room — " + missingCount() + " thing" + (missingCount() === 1 ? "" : "s") + " here you have not looked at properly." }], idx: 0 };
+      state.gained = null;
+      return render();
+    }
+    return openDecision();
+  }
+
+  seenHere()[id] = true;
+  state.gained = null;
+  state.dialog = { lines: h.lines.slice(), idx: 0, gives: h.gives || null };
+  if (h.lines.length === 1) finishDialog();
+  render();
+}
+
+function advanceDialog() {
+  if (!state.dialog) return;
+  if (state.dialog.idx < state.dialog.lines.length - 1) {
+    state.dialog.idx += 1;
+    if (state.dialog.idx === state.dialog.lines.length - 1) finishDialog();
+  }
+  render();
+}
+
+function finishDialog() {
+  var g = state.dialog && state.dialog.gives;
+  if (g && !state.found[g]) {
+    state.found[g] = true;
+    state.evidence += 1;
+    state.points += FIND;
+    state.gained = g;
+  }
+  if (state.dialog) state.dialog.gives = null;
+}
+
+function inspect(id) {
+  state.gained = null;
+  state.dialog = { lines: [{ who: EVIDENCE[id].ico + "  " + EVIDENCE[id].name, text: EVIDENCE[id].text }], idx: 0 };
+  render();
+}
+
+/* ── decisions ────────────────────────────────────────────────── */
+
+function openDecision() {
+  state.decision = { i: state.loc, answered: false };
+  render();
+}
+
+function drawDecision() {
+  var d = DECISIONS[state.decision.i];
+  var order = state.orders[state.decision.i];
+  var stage = document.getElementById("app").querySelector(".frame");
+
+  var veil = document.createElement("div");
+  veil.className = "veil";
+  var html = '<div class="panel" role="dialog" aria-modal="true" aria-label="Decision">' +
+    '<div class="kicker">Decision ' + (state.decision.i + 1) + ' of ' + TOTAL + '</div>' +
+    '<h3>' + esc(d.ask) + '</h3><div class="opts">';
+  for (var p = 0; p < order.length; p++) {
+    html += '<button class="opt" data-p="' + p + '"><span class="key">' + (p + 1) + '</span>' +
+            '<span>' + esc(d.options[order[p]]) + '</span></button>';
+  }
+  html += '</div><div id="res"></div></div>';
+  veil.innerHTML = html;
+  stage.appendChild(veil);
+
+  veil.querySelectorAll(".opt").forEach(function (b) {
+    b.addEventListener("click", function () { answer(parseInt(this.getAttribute("data-p"), 10)); });
+  });
+  veil.querySelector(".opt").focus();
+  state.veil = veil;
+}
+
+function answer(pos) {
+  if (state.decision.answered) return;
+  state.decision.answered = true;
+
+  var idx = state.decision.i;
+  var d = DECISIONS[idx];
+  var order = state.orders[idx];
+  var picked = order[pos];
+  var right = picked === d.answer;
+  var gained = 0;
+
+  if (right) {
+    state.streak += 1;
+    state.bestStreak = Math.max(state.bestStreak, state.streak);
+    gained = Math.round(BASE * multiplier(state.streak));
+    state.points += gained;
+    state.correct += 1;
+  } else {
+    state.streak = 0;
+  }
+  state.log.push({ i: idx, picked: picked, right: right });
+
+  var btns = state.veil.querySelectorAll(".opt");
+  for (var b = 0; b < btns.length; b++) {
+    btns[b].disabled = true;
+    if (order[b] === d.answer) btns[b].classList.add("correct");
+    else if (b === pos) btns[b].classList.add("wrong");
+    else btns[b].classList.add("faded");
+  }
+
+  /* Right answer, but did you do the legwork to back it up? */
+  var thin = right && d.needFor && !state.found[d.needFor];
+  var story = right ? (thin ? d.winAlt : d.win) : d.lose;
+  var last = idx === TOTAL - 1;
+
+  state.veil.querySelector("#res").innerHTML =
+    '<div class="outcome' + (right ? "" : " bad") + '" id="out" tabindex="-1">' +
+      '<div class="verdict">What happens next' +
+        (gained ? ' · +' + gained + (state.streak >= 2 ? " · " + multiplier(state.streak).toFixed(1) + "×" : "") : "") +
+      '</div><p>' + story + '</p></div>' +
+    '<div class="why"><div class="lbl">Why</div><p>' + d.explanation + '</p>' +
+      '<p class="src">' + esc(d.module) + ' — <a href="' + d.url + '" target="_blank" rel="noopener">read the guide</a></p></div>' +
+    '<button class="btn wide" id="onward">' + (last ? "See how it ended" : "Carry on") + '</button>';
+
+  state.veil.querySelector("#onward").addEventListener("click", onward);
+  state.veil.querySelector("#out").focus();
+  countUp(document.getElementById("score"), state.points, 600);
+}
+
+function onward() {
+  var last = state.decision.i === TOTAL - 1;
+  state.decision = null;
+  state.veil = null;
+  state.gained = null;
+  if (last) { state.screen = "end"; return render(); }
+  state.loc += 1;
+  state.dialog = { lines: [{ text: here().intro, raw: true }], idx: 0 };
+  render();
+}
+
+/* ── ending ───────────────────────────────────────────────────── */
+
+function computeBadges() {
+  var at = {}, seq = [];
+  state.log.forEach(function (e) { at[e.i] = e.right; seq.push(e.right); });
+  var ctx = {
+    at: at, correct: state.correct, evidence: state.evidence,
+    held: function (id) { return !!state.found[id]; }
+  };
+  return BADGES.map(function (b) { return { badge: b, earned: !!b.test(ctx) }; });
+}
+
+function renderEnd() {
+  var ending = ENDINGS.filter(function (r) { return state.correct >= r.min; })[0];
+  var badges = computeBadges();
+  var prev = state.hadBest;
+  var isBest = saveBest({ points: state.points, correct: state.correct, evidence: state.evidence, streak: state.bestStreak });
+  var missed = state.log.filter(function (e) { return !e.right; });
+
+  var html = '<div class="frame">' +
+    '<div class="stage"><svg viewBox="0 0 800 400" role="img" aria-label="Your desk, later">' + artDesk(true) + '</svg></div>' +
+    '<div class="endwrap"><div style="text-align:center">' +
+      '<p class="eyebrow">How it ended</p>' +
+      '<div class="rank-name">' + esc(ending.name) + '</div>' +
+      '<p class="epilogue">' + ending.text + '</p>' +
+      '<div class="big"><span id="pts">0</span> <span>/ ' + MAX_POINTS.toLocaleString() + ' pts</span></div>' +
+      '<div class="tallies">' +
+        '<div class="tally"><b>' + state.correct + ' / ' + TOTAL + '</b>decisions right</div>' +
+        '<div class="tally"><b>' + state.evidence + ' / ' + EVIDENCE_TOTAL + '</b>evidence found</div>' +
+        '<div class="tally"><b>' + state.bestStreak + '</b>longest streak</div>' +
+      '</div>' +
+      (isBest && prev ? '<p class="best">⭐ New best — you beat ' + prev.points.toLocaleString() + ' pts</p>'
+        : isBest ? '<p class="best">⭐ Best run saved</p>'
+        : prev ? '<p class="best">Your best: ' + prev.points.toLocaleString() + ' pts</p>' : "") +
+    '</div>';
+
+  html += '<p class="eyebrow" style="margin-top:1.4rem">Badges</p><div class="badges">';
+  badges.forEach(function (b) {
+    html += '<div class="badge"' + (b.earned ? ' data-earn="1"' : "") + '>' +
+      '<div class="ico">' + b.badge.ico + '</div><div class="nm">' + esc(b.badge.name) + '</div>' +
+      '<div class="ds">' + esc(b.badge.desc) + '</div></div>';
+  });
+  html += '</div>';
+
+  if (missed.length) {
+    var mods = [];
+    missed.forEach(function (e) {
+      var m = DECISIONS[e.i].module;
+      if (mods.indexOf(m) === -1) mods.push(m);
+    });
+    var first = DECISIONS[missed[0].i];
+    html += '<div class="nudge"><b>Where the story turned:</b> ' + esc(mods.slice(0, 2).join(" and ")) +
+      '. Start with <a href="' + first.url + '" target="_blank" rel="noopener">' + esc(first.module) + '</a>, then play it again — ' +
+      'the options are reshuffled every run, so position will not save you.</div>';
+  } else if (state.evidence < EVIDENCE_TOTAL) {
+    html += '<div class="nudge"><b>Eight for eight.</b> You still left ' + (EVIDENCE_TOTAL - state.evidence) +
+      ' piece' + (EVIDENCE_TOTAL - state.evidence === 1 ? "" : "s") + ' of evidence unexamined — ' +
+      'right answers you did not fully earn. Go back and turn over the rest.</div>';
+  } else {
+    html += '<div class="nudge"><b>Nothing left in this building.</b> The real test is the next thing you build: take one initiative ' +
+      'already in flight and run it through Five Whys, then the 4Cs, then a leading and lagging chain.</div>';
+  }
+
+  html += '<p class="eyebrow">Every decision</p><div class="review">';
+  state.log.forEach(function (e, n) {
+    var d = DECISIONS[e.i];
+    html += '<div class="row"><div class="q"><span class="mark ' + (e.right ? "ok" : "no") + '">' +
+      (e.right ? "✓" : "✗") + '</span>' + (n + 1) + ". " + esc(d.ask) + '</div>' +
+      '<div class="a">You chose: <b>' + esc(d.options[e.picked]) + '</b>' +
+      (e.right ? "" : '<br>The answer: <b>' + esc(d.options[d.answer]) + '</b>') + '</div></div>';
+  });
+  html += '</div><div class="actions"><button class="btn" id="again">Play again</button>' +
+    '<a class="btn ghost" href="https://www.idg.gov.sg/product-thinking/" target="_blank" rel="noopener">Read the source</a>' +
+    '</div></div></div>';
+
+  app.innerHTML = html;
+  countUp(document.getElementById("pts"), state.points, 900);
+
+  var earned = app.querySelectorAll('.badge[data-earn="1"]');
+  var step = reduced() ? 0 : 150;
+  for (var i = 0; i < earned.length; i++) {
+    (function (n, k) { setTimeout(function () { n.classList.add("earned"); }, 350 + k * step); })(earned[i], i);
+  }
+  var again = document.getElementById("again");
+  again.addEventListener("click", start);
+  again.focus();
+}
+
+/* ── keyboard ─────────────────────────────────────────────────── */
+
+document.addEventListener("keydown", function (ev) {
+  if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+
+  if (state.decision && !state.decision.answered && ev.key >= "1" && ev.key <= "4") {
+    var opts = state.veil ? state.veil.querySelectorAll(".opt") : [];
+    var i = parseInt(ev.key, 10) - 1;
+    if (opts[i]) { ev.preventDefault(); answer(i); }
+    return;
+  }
+  if (ev.key === "Enter") {
+    if (document.activeElement && document.activeElement.tagName === "BUTTON") return;
+    var next = document.getElementById("onward") || document.getElementById("cont") ||
+               document.getElementById("actnow") || document.getElementById("go") ||
+               document.getElementById("again");
+    if (next) { ev.preventDefault(); next.click(); }
+  }
+});
+
+reset();
+render();
+
+</script>
+</body>
+</html>

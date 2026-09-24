@@ -1,0 +1,11 @@
+# Vendored third-party skills — not ours to redistribute
+.agents/
+.claude/
+skills-lock.json
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
