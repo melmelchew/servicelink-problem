@@ -49,6 +49,12 @@ Every decision is drawn from Singapore's **[Institute of Digital Government](htt
 
 `quiz-standalone.html` is an earlier, simpler version: the same eight questions as a linear quiz, no exploration.
 
+`build-artifact.py` derives a Claude Artifact build of the game from `index.html` by stripping the `<!doctype>/<html>/<head>/<body>` wrapper, which that platform supplies itself. The theme tokens in `index.html` already cover all three states a viewer can be in — no preference set, `prefers-color-scheme: dark`, and an explicit `data-theme` choice — so both builds share one source of truth:
+
+```sh
+python3 build-artifact.py    # -> artifact.html (gitignored, regenerate on demand)
+```
+
 ## Credit and status
 
 This is an **unofficial learning project**. It is not affiliated with, endorsed by, or produced by the Institute of Digital Government, MDDI, or the Singapore Government.

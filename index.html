@@ -22,9 +22,12 @@
     --skin1: #c8956a; --skin2: #8d5d3b; --skin3: #e0b48c;
     --cloth1: #3d5a80; --cloth2: #7d4e57; --cloth3: #4a6b52; --cloth4: #5b5570;
     --hair1: #2e2620; --hair2: #56483c; --hair3: #8a8a88;
+    --btn-fg: #ffffff;
   }
+  /* Dark tokens for the default 'system' state; the :not() guard lets an
+     explicit light choice beat a dark OS. */
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]) {
       --bg: #101216; --surface: #1a1d22; --surface-alt: #202429;
       --text: #e9e6e1; --muted: #9b968d; --border: #2c3039;
       --accent: #7ba4ea; --accent-soft: #1b2533;
@@ -38,7 +41,25 @@
       --skin1: #a87a52; --skin2: #74492c; --skin3: #bb8f68;
       --cloth1: #35506f; --cloth2: #6a414a; --cloth3: #3f5c46; --cloth4: #4d4860;
       --hair1: #1d1915; --hair2: #453a30; --hair3: #6f6f6d;
+      --btn-fg: #10141b;
     }
+  }
+  /* And again for an explicit dark choice, so the toggle wins either way. */
+  :root[data-theme="dark"] {
+    --bg: #101216; --surface: #1a1d22; --surface-alt: #202429;
+    --text: #e9e6e1; --muted: #9b968d; --border: #2c3039;
+    --accent: #7ba4ea; --accent-soft: #1b2533;
+    --correct: #4ec98a; --correct-soft: #142620;
+    --wrong: #f2857c; --wrong-soft: #2a1a18;
+    --gold: #e0b34a; --gold-soft: #272115;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+    --wall: #2f3742; --wall2: #262d36; --floor: #3a3129; --floor2: #2e2721;
+    --furn: #4a3a2a; --furn2: #372a1e; --metal: #565c66; --glass: #2b4250;
+    --sky: #22394a; --screen: #1a2a36; --paper: #cfc9bd;
+    --skin1: #a87a52; --skin2: #74492c; --skin3: #bb8f68;
+    --cloth1: #35506f; --cloth2: #6a414a; --cloth3: #3f5c46; --cloth4: #4d4860;
+    --hair1: #1d1915; --hair2: #453a30; --hair3: #6f6f6d;
+    --btn-fg: #10141b;
   }
 
   * { box-sizing: border-box; }
@@ -218,11 +239,10 @@
   .why .src { font-size: .74rem; color: var(--muted); margin: 0; }
 
   .btn {
-    font: inherit; font-weight: 600; font-size: .9rem; background: var(--accent); color: #fff;
+    font: inherit; font-weight: 600; font-size: .9rem; background: var(--accent); color: var(--btn-fg);
     border: 1px solid var(--accent); border-radius: 9px; padding: .62rem 1.2rem;
     cursor: pointer; transition: opacity .15s; text-decoration: none; display: inline-block;
   }
-  @media (prefers-color-scheme: dark) { .btn { color: #10141b; } }
   .btn:hover { opacity: .88; }
   .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
   .btn.ghost { background: transparent; color: var(--accent); }

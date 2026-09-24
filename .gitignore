@@ -9,3 +9,6 @@ skills-lock.json
 # Editor
 .vscode/
 .idea/
+
+# Derived build output — regenerate with: python3 build-artifact.py
+artifact.html
